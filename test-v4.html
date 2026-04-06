@@ -348,7 +348,9 @@
   <div class="main">
     <div id="name-bar" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 24px;margin-bottom:28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
       <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap;">Ime in priimek</label>
-      <input id="candidate-name" type="text" placeholder="Vpišite ime in priimek..." style="flex:1;min-width:200px;background:var(--surface);border:1.5px solid var(--border);border-radius:9px;padding:10px 14px;font-size:15px;font-family:'Source Sans 3',sans-serif;color:var(--text);outline:none;transition:border-color .2s;">
+      <input id="candidate-name" type="text" placeholder="Vpišite ime in priimek..." style="flex:2;min-width:200px;background:var(--surface);border:1.5px solid var(--border);border-radius:9px;padding:10px 14px;font-size:15px;font-family:'Source Sans 3',sans-serif;color:var(--text);outline:none;transition:border-color .2s;">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap;">Koda</label>
+      <input id="candidate-koda" type="text" placeholder="Vaša koda..." style="flex:1;min-width:120px;max-width:180px;background:var(--surface);border:1.5px solid var(--border);border-radius:9px;padding:10px 14px;font-size:15px;font-family:'Source Sans 3',sans-serif;color:var(--text);outline:none;transition:border-color .2s;letter-spacing:1px;">
     </div>
     <div id="quiz-form"></div>
     <div class="warn-unanswered" id="warn-unanswered">⚠ Nekatera vprašanja so brez odgovora. Odgovorite na vsa vprašanja pred oddajo.</div>
@@ -471,7 +473,7 @@
 // ══════════════════════════════════════════════════════════
 //  NASTAVI TUKAJ — samo ta URL je potrebno spremeniti
 // ══════════════════════════════════════════════════════════
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbx5lVCIstdphMxPhiv5zYTYOG0HDofV59NUFi_uUxwATHecFX9yf02Q3tyZXYvBM6cBjg/exec";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxS-OAWXBHqFJGLnd22savEziEcQFOmduUfoEuTKkPGortpE_4A4r_Vclvn_6_iyHpv1g/exec";
 
 // ── GESLA ─────────────────────────────────────────────────
 const LOGIN_USERNAME = "Test2026";
@@ -771,6 +773,7 @@ function updateProgress(){
 async function submitTest(){
   const total=activeQuestions.length;
   const name=document.getElementById('candidate-name').value.trim();
+  const koda=document.getElementById('candidate-koda').value.trim().toUpperCase();
   if(!name){
     document.getElementById('candidate-name').style.borderColor='var(--red)';
     document.getElementById('candidate-name').focus();
@@ -778,6 +781,14 @@ async function submitTest(){
     return;
   }
   document.getElementById('candidate-name').style.borderColor='var(--border)';
+  if(!koda){
+    document.getElementById('candidate-koda').style.borderColor='var(--red)';
+    document.getElementById('candidate-koda').focus();
+    document.getElementById('candidate-koda').placeholder='Vpišite kodo!';
+    return;
+  }
+  document.getElementById('candidate-koda').style.borderColor='var(--border)';
+  document.getElementById('candidate-koda').value=koda;
   if(Object.keys(answered).length<total){
     document.getElementById('warn-unanswered').style.display='block';
     for(const q of activeQuestions){ if(answered[q.id]===undefined){ document.getElementById('qcard-'+q.id).scrollIntoView({behavior:'smooth',block:'center'}); break; } }
@@ -815,17 +826,17 @@ async function submitTest(){
   document.getElementById('overall-label').textContent=pass?'POZITIVNO':'NEGATIVNO';
   document.getElementById('section-results-grid').innerHTML=stats.map(s=>'<div class="section-result-card '+(s.pass?'pass':'fail')+'"><div class="src-status">'+(s.pass?'Pozitivno ✓':'Negativno ✗')+'</div><div class="src-title">'+s.title+'</div><div class="src-range">'+s.correct+' / '+s.total+' pravilnih</div><div class="src-bar-wrap"><div class="src-bar '+(s.pass?'pass':'fail')+'" style="width:'+s.pct+'%"></div></div><div class="src-meta"><div class="src-score">'+s.correct+' / '+s.total+' pravilnih</div><div class="src-pct">'+s.pct+'%</div></div></div>').join('');
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
-  await saveResults(name, pct, pass, stats);
+  await saveResults(name, koda, pct, pass, stats);
 }
 
-async function saveResults(name, totalPct, totalPass, stats){
+async function saveResults(name, koda, totalPct, totalPass, stats){
   const statusEl=document.getElementById('save-status');
   statusEl.textContent='Shranjujem rezultate...'; statusEl.className='save-status';
   const now=new Date();
   const pad=n=>String(n).padStart(2,'0');
   const datum=pad(now.getDate())+'.'+pad(now.getMonth()+1)+'.'+now.getFullYear();
   const cas=pad(now.getHours())+':'+pad(now.getMinutes());
-  let url=SHEETS_URL+'?type=result&ime='+encodeURIComponent(name)+'&datum='+encodeURIComponent(datum)+'&cas='+encodeURIComponent(cas)+'&skupaj_pct='+totalPct+'&skupaj_status='+encodeURIComponent(totalPass?'POZITIVNO':'NEGATIVNO');
+  let url=SHEETS_URL+'?type=result&ime='+encodeURIComponent(name)+'&koda='+encodeURIComponent(koda)+'&datum='+encodeURIComponent(datum)+'&cas='+encodeURIComponent(cas)+'&skupaj_pct='+totalPct+'&skupaj_status='+encodeURIComponent(totalPass?'POZITIVNO':'NEGATIVNO');
   stats.forEach(s=>{
     url+='&sklop_'+s.id+'_tocke='+encodeURIComponent(s.correct+'/'+s.total);
     url+='&sklop_'+s.id+'_pct='+s.pct;
@@ -1020,6 +1031,14 @@ function buildDashHTML(rows){
   const pad=n=>String(n).padStart(2,'0');
   const lastUpdate=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
 
+  // Grupiranje po kodi
+  const byKoda={};
+  rows.forEach(r=>{
+    const k=r['Koda']||r['Ime in priimek']||'?';
+    if(!byKoda[k]) byKoda[k]=[];
+    byKoda[k].push(r);
+  });
+
   const html=`
   <div class="dash-refresh-row">
     <span class="dash-last-update">Posodobljeno ob ${lastUpdate}</span>
@@ -1030,7 +1049,7 @@ function buildDashHTML(rows){
     <div class="dash-kpi blue">
       <div class="dash-kpi-val">${total}</div>
       <div class="dash-kpi-label">Skupaj testov</div>
-      <div class="dash-kpi-sub">vsi časi</div>
+      <div class="dash-kpi-sub">${Object.keys(byKoda).length} kandidatov</div>
     </div>
     <div class="dash-kpi green">
       <div class="dash-kpi-val">${passRate}%</div>
@@ -1059,7 +1078,7 @@ function buildDashHTML(rows){
       <div class="trend-wrap"><svg class="trend-svg" id="dash-trend" height="180"></svg></div>
     </div>
     <div class="dash-card full">
-      <div class="dash-card-title">👤 Primerjava kandidatov — klikni za podrobnosti</div>
+      <div class="dash-card-title">👤 Kandidati po kodi — klikni za podrobnosti in zgodovino</div>
       <div class="kandidat-cards" id="dash-kandidati"></div>
       <div id="dash-detail"></div>
     </div>
@@ -1083,19 +1102,25 @@ function buildDashHTML(rows){
   // Trend SVG
   drawTrend(months, byMonth);
 
-  // Kandidat kartice
+  // Kandidat kartice — grupirane po kodi
   const karEl=document.getElementById('dash-kandidati');
-  karEl.innerHTML=rows.slice().reverse().map((r,i)=>{
-    const pass=r['Status'].includes('POZITIVNO');
-    return `<div class="kandidat-card ${i===_selectedKandidat?'selected':''}" onclick="selectKandidat(${rows.length-1-i})">
-      <div class="kandidat-card-name">${r['Ime in priimek']||'—'}</div>
-      <div class="kandidat-card-meta">${r['Datum']||''} · ${r['Ura']||''}</div>
-      <div class="kandidat-card-meta" style="margin-top:2px;">Skupaj: ${r['Skupaj %']||'—'}</div>
-      <span class="kandidat-card-badge ${pass?'pass':'fail'}">${pass?'✓ POZITIVNO':'✗ NEGATIVNO'}</span>
+  const kodaKeys=Object.keys(byKoda);
+  karEl.innerHTML=kodaKeys.map((k,i)=>{
+    const attempts=byKoda[k];
+    const last=attempts[attempts.length-1];
+    const anyPass=attempts.some(r=>r['Status'].includes('POZITIVNO'));
+    const lastPass=last['Status'].includes('POZITIVNO');
+    const ime=last['Ime in priimek']||k;
+    return `<div class="kandidat-card ${_selectedKandidat===k?'selected':''}" onclick="selectKandidat('${k}')">
+      <div class="kandidat-card-name">${ime}</div>
+      <div class="kandidat-card-meta">Koda: <strong>${k}</strong></div>
+      <div class="kandidat-card-meta">${attempts.length} ${attempts.length===1?'poskus':'poskusov'} · Zadnji: ${last['Datum']||''}</div>
+      <span class="kandidat-card-badge ${lastPass?'pass':'fail'}">${lastPass?'✓ POZITIVNO':'✗ NEGATIVNO'}</span>
+      ${attempts.length>1?`<span class="kandidat-card-badge" style="background:rgba(79,142,247,.15);color:var(--accent);margin-left:4px;">${attempts.length}x</span>`:''}
     </div>`;
   }).join('');
 
-  if(_selectedKandidat!==null) showKandidatDetail(_selectedKandidat, rows);
+  if(_selectedKandidat!==null && byKoda[_selectedKandidat]) showKandidatDetail(_selectedKandidat, byKoda);
 }
 
 function drawTrend(months, byMonth){
@@ -1140,18 +1165,26 @@ function drawTrend(months, byMonth){
     <text x="${pad.l+70}" y="14" font-size="10" fill="#4f8ef7">- - Skupaj</text>`;
 }
 
-function selectKandidat(idx){
-  _selectedKandidat = idx;
-  // Posodobi selected stanje kartic
-  document.querySelectorAll('.kandidat-card').forEach((el,i)=>{
-    el.classList.toggle('selected', i === ((_dashData.length-1)-idx));
+function selectKandidat(koda){
+  _selectedKandidat = koda;
+  document.querySelectorAll('.kandidat-card').forEach(el=>{
+    const k=el.querySelector('.kandidat-card-meta strong');
+    el.classList.toggle('selected', k && k.textContent===koda);
   });
-  showKandidatDetail(idx, _dashData);
+  // Rebuild byKoda from _dashData
+  const byKoda={};
+  _dashData.forEach(r=>{
+    const k=r['Koda']||r['Ime in priimek']||'?';
+    if(!byKoda[k]) byKoda[k]=[];
+    byKoda[k].push(r);
+  });
+  showKandidatDetail(koda, byKoda);
 }
 
-function showKandidatDetail(idx, rows){
-  const r=rows[idx];
-  if(!r) return;
+function showKandidatDetail(koda, byKoda){
+  const attempts=byKoda[koda];
+  if(!attempts||!attempts.length) return;
+  const r=attempts[attempts.length-1]; // zadnji poskus za radar
   const pass=r['Status'].includes('POZITIVNO');
   const sklopData=SKLOP_FULL.map(s=>{
     const pct=parseFloat(r[s+' %'])||0;
@@ -1160,19 +1193,16 @@ function showKandidatDetail(idx, rows){
     return {name:s, pct, tocke, status};
   });
 
+  // Radar SVG
   const W=400, H=320, cx=W/2, cy=H/2, R=110;
   const n=SKLOP_FULL.length;
   const angleStep=2*Math.PI/n;
-
-  // Radar točke
   const points=sklopData.map((s,i)=>{
     const angle=i*angleStep-Math.PI/2;
     const r2=(s.pct/100)*R;
     return [cx+r2*Math.cos(angle), cy+r2*Math.sin(angle)];
   });
   const polyPts=points.map(p=>p.join(',')).join(' ');
-
-  // Grid
   let grid='', axes='', axisLabels='';
   [0.25,0.5,0.75,1].forEach(scale=>{
     const pts=sklopData.map((_,i)=>{
@@ -1188,7 +1218,6 @@ function showKandidatDetail(idx, rows){
     const lx=(cx+(R+22)*Math.cos(angle)).toFixed(1), ly=(cy+(R+22)*Math.sin(angle)).toFixed(1);
     axisLabels+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#7a8299">${SKLOP_SHORT[sklopData[i].name]||sklopData[i].name}</text>`;
   });
-
   const radarSVG=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:400px;">
     ${grid}${axes}
     <polygon points="${polyPts}" fill="rgba(79,142,247,0.2)" stroke="#4f8ef7" stroke-width="2"/>
@@ -1206,19 +1235,37 @@ function showKandidatDetail(idx, rows){
       <div class="sklop-bar-pct" style="color:${s.status==='P'?'var(--green)':'var(--red)'}">${s.pct}%</div>
     </div>`).join('');
 
+  // Zgodovina poskusov
+  const histHTML = attempts.length > 1 ? `
+    <div style="margin-top:20px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">📅 Zgodovina poskusov (${attempts.length})</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${attempts.map((a,i)=>{
+          const ap=a['Status'].includes('POZITIVNO');
+          return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+            <span style="font-size:11px;font-weight:700;color:var(--muted);width:20px;">#${i+1}</span>
+            <span style="font-size:13px;flex:1;">${a['Datum']||''} ob ${a['Ura']||''}</span>
+            <span style="font-size:14px;font-weight:700;color:${ap?'var(--green)':'var(--red)'};">${a['Skupaj %']||'—'}</span>
+            <span class="rez-badge ${ap?'pass':'fail'}">${ap?'✓':'✗'}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
   document.getElementById('dash-detail').innerHTML=`
     <div class="detail-panel">
       <div class="detail-header">
         <div>
-          <div class="detail-name">${r['Ime in priimek']||'—'}</div>
-          <div class="detail-meta">${r['Datum']||''} ob ${r['Ura']||''} · Skupaj: <strong>${r['Skupaj %']||'—'}</strong></div>
+          <div class="detail-name">${r['Ime in priimek']||'—'} <span style="font-size:14px;color:var(--accent);font-family:monospace;">${koda}</span></div>
+          <div class="detail-meta">Zadnji test: ${r['Datum']||''} ob ${r['Ura']||''} · Skupaj: <strong>${r['Skupaj %']||'—'}</strong> · ${attempts.length} ${attempts.length===1?'poskus':'poskusov'}</div>
         </div>
         <span class="rez-badge ${pass?'pass':'fail'}" style="font-size:13px;padding:6px 14px;">${pass?'✓ POZITIVNO':'✗ NEGATIVNO'}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
         <div>
-          <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">Rezultati po sklopih</div>
+          <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">Rezultati po sklopih (zadnji poskus)</div>
           <div class="sklop-bars">${barsHTML}</div>
+          ${histHTML}
         </div>
         <div>
           <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">Radar — strong/weak točke</div>
@@ -1231,6 +1278,8 @@ function showKandidatDetail(idx, rows){
 function retryTest(){
   document.getElementById('candidate-name').value='';
   document.getElementById('candidate-name').style.borderColor='var(--border)';
+  document.getElementById('candidate-koda').value='';
+  document.getElementById('candidate-koda').style.borderColor='var(--border)';
   window.scrollTo({top:0,behavior:'smooth'});
   buildQuiz();
 }
