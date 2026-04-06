@@ -351,11 +351,12 @@
       <div class="q-list" id="q-list"><div class="q-list-empty">Nalagam...</div></div>
     </div>
     <div id="panel-rez" style="display:none">
-      <div class="rez-stats" id="rez-stats"></div>
-      <div style="margin-top:20px;display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <select class="filter-select" id="rez-filter-month" onchange="renderRezultati()" style="min-width:160px;"></select>
         <button class="btn-refresh" onclick="renderRezultati()">↺ Osveži</button>
       </div>
-      <div id="rez-container"><div class="rez-empty">Nalagam...</div></div>
+      <div class="rez-stats" id="rez-stats"></div>
+      <div style="margin-top:16px;" id="rez-container"><div class="rez-empty">Nalagam...</div></div>
     </div>
   </div>
 </div>
@@ -686,41 +687,101 @@ function jsonp(url){
   });
 }
 
-function renderRezultati(){
+function buildMonthOptions(rows){
+  const sel = document.getElementById('rez-filter-month');
+  const now = new Date();
+  // Zberi unikatne mesece iz podatkov
+  const months = new Set();
+  rows.forEach(r=>{
+    const d = (r['Datum']||'').replace(/'/g,'');
+    const parts = d.split('.');
+    if(parts.length===3) months.add(parts[2]+'-'+parts[1].padStart(2,'0'));
+  });
+  // Dodaj tekoči mesec če ni
+  const curKey = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  months.add(curKey);
+  // Sortiraj padajoče
+  const sorted = [...months].sort().reverse();
+  const slNames = ['Januar','Februar','Marec','April','Maj','Junij','Julij','Avgust','September','Oktober','November','December'];
+  const prevVal = sel.value;
+  sel.innerHTML = sorted.map(k=>{
+    const [y,m] = k.split('-');
+    const label = slNames[parseInt(m)-1]+' '+y;
+    return '<option value="'+k+'">'+(k===curKey?'📅 ':'')+label+'</option>';
+  }).join('');
+  // Nastavi na tekoči mesec če ni bil izbran drugače
+  if(!prevVal || !sorted.includes(prevVal)) sel.value = curKey;
+  else sel.value = prevVal;
+}
+
+function filterByMonth(rows, monthKey){
+  if(!monthKey) return rows;
+  const [y,m] = monthKey.split('-');
+  return rows.filter(r=>{
+    const d = (r['Datum']||'').replace(/'/g,'');
+    const parts = d.split('.');
+    if(parts.length!==3) return false;
+    return parts[2]===y && parts[1].padStart(2,'0')===m;
+  });
+}
+
+let _allRezultati = null;
+
+function renderRezultati(forceRefresh){
   const container = document.getElementById('rez-container');
   const statsEl   = document.getElementById('rez-stats');
-  container.innerHTML = '<div class="rez-empty">Nalagam rezultate...</div>';
-  statsEl.innerHTML = '';
-  jsonp(SHEETS_URL+'?r=1').then(rows=>{
-    if(!Array.isArray(rows)||!rows.length){ container.innerHTML='<div class="rez-empty">Še ni rezultatov.</div>'; return; }
-    const total  = rows.length;
-    const passed = rows.filter(r=>(r['Status']||'').includes('POZITIVNO')).length;
+
+  function display(rows){
+    buildMonthOptions(rows);
+    const monthKey = document.getElementById('rez-filter-month').value;
+    const filtered = filterByMonth(rows, monthKey);
+    const total  = filtered.length;
+    const passed = filtered.filter(r=>(r['Status']||'').replace(/'/g,'').includes('POZITIVNO')).length;
     const failed = total-passed;
     statsEl.innerHTML=
-      '<div class="rez-stat"><div class="rez-stat-val">'+total+'</div><div class="rez-stat-label">Skupaj testov</div></div>'+
+      '<div class="rez-stat"><div class="rez-stat-val">'+total+'</div><div class="rez-stat-label">Ta mesec</div></div>'+
       '<div class="rez-stat"><div class="rez-stat-val green">'+passed+'</div><div class="rez-stat-label">Pozitivnih</div></div>'+
       '<div class="rez-stat"><div class="rez-stat-val red">'+failed+'</div><div class="rez-stat-label">Negativnih</div></div>';
+    if(!filtered.length){ container.innerHTML='<div class="rez-empty">Ni rezultatov za izbrani mesec.</div>'; return; }
     const html='<div class="rez-table-wrap"><table class="rez-table"><thead><tr>'+
       '<th>Ime in priimek</th><th>Datum</th><th>Ura</th><th>Skupaj %</th><th>Status</th>'+
       '<th>Fin.</th><th>Pravne</th><th>Trž.</th><th>Prem.</th><th>Živl.</th><th>Nal.</th><th>Poz.</th><th>Pranje</th>'+
       '</tr></thead><tbody>'+
-      rows.slice().reverse().map(r=>{
-        const pass=(r['Status']||'').includes('POZITIVNO');
-        const pct=r['Skupaj %']||'—';
+      filtered.slice().reverse().map(r=>{
+        const status=(r['Status']||'').replace(/'/g,'');
+        const pass=status.includes('POZITIVNO');
+        const pct=(r['Skupaj %']||'—').toString().replace(/'/g,'');
+        const datum=(r['Datum']||'—').toString().replace(/'/g,'');
+        const ura=(r['Ura']||'—').toString().replace(/'/g,'');
+        const ime=(r['Ime in priimek']||'—').toString().replace(/'/g,'');
         return '<tr>'+
-          '<td class="rez-name">'+(r['Ime in priimek']||'—')+'</td>'+
-          '<td>'+(r['Datum']||'—')+'</td>'+
-          '<td>'+(r['Ura']||'—')+'</td>'+
+          '<td class="rez-name">'+ime+'</td>'+
+          '<td>'+datum+'</td>'+
+          '<td>'+ura+'</td>'+
           '<td class="rez-pct '+(pass?'pass':'fail')+'">'+pct+'</td>'+
           '<td><span class="rez-badge '+(pass?'pass':'fail')+'">'+(pass?'✓ DA':'✗ NE')+'</span></td>'+
           ['Finančno','Pravne','Trženje','Premoženjska','Življenjska','Naložbeni','Pozavarovanja','Pranje denarja'].map(s=>{
-            const st=r[s]||'';
+            const st=(r[s]||'').toString().replace(/'/g,'');
             return '<td style="font-size:12px;font-weight:600;color:'+(st==='P'?'var(--green)':st==='N'?'var(--red)':'var(--muted)')+';">'+(st==='P'?'✓':st==='N'?'✗':'—')+'</td>';
           }).join('')+
           '</tr>';
       }).join('')+
       '</tbody></table></div>';
     container.innerHTML=html;
+  }
+
+  // Če imamo že podatke in ne forsiramo osvežitve — samo prefiltriramo
+  if(_allRezultati && !forceRefresh){
+    display(_allRezultati);
+    return;
+  }
+
+  container.innerHTML='<div class="rez-empty">Nalagam rezultate...</div>';
+  statsEl.innerHTML='';
+  jsonp(SHEETS_URL+'?r=1').then(rows=>{
+    _allRezultati = Array.isArray(rows) ? rows : [];
+    if(!_allRezultati.length){ container.innerHTML='<div class="rez-empty">Še ni rezultatov.</div>'; return; }
+    display(_allRezultati);
   }).catch(err=>{
     container.innerHTML='<div class="rez-empty">Napaka pri nalaganju.<br><small>'+err.message+'</small></div>';
   });
