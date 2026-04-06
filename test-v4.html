@@ -709,7 +709,7 @@ async function renderRezultati(){
           '<td><span class="rez-badge '+(pass?'pass':'fail')+'">'+(pass?'✓ DA':'✗ NE')+'</span></td>'+
           ['Finančno','Pravne','Trženje','Premoženjska','Življenjska','Naložbeni','Pozavarovanja','Pranje denarja'].map(s=>{
             const st = r[s]||'';
-            return '<td style="font-size:12px;color:'+(st==='P'?'var(--green)':st==='N'?'var(--red)':'var(--muted)')+'font-weight:600;">'+(st==='P'?'✓':st==='N'?'✗':'—')+'</td>';
+            return '<td style="font-size:12px;color:'+(st==='P'?'var(--green)':st==='N'?'var(--red)':'var(--muted)')+';font-weight:600;">'+(st==='P'?'✓':st==='N'?'✗':'—')+'</td>';
           }).join('')+
           '</tr>';
       }).join('')+
@@ -720,7 +720,7 @@ async function renderRezultati(){
   }
 }
 
-
+function retryTest(){
   document.getElementById('candidate-name').value='';
   document.getElementById('candidate-name').style.borderColor='var(--border)';
   window.scrollTo({top:0,behavior:'smooth'});
