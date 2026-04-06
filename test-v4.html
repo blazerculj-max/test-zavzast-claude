@@ -364,7 +364,7 @@
 // ══════════════════════════════════════════════════════════
 //  NASTAVI TUKAJ — samo ta URL je potrebno spremeniti
 // ══════════════════════════════════════════════════════════
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbzzfux5p4TQ-F-rGjGnhyEH-DB7j6Jh6KnTXq_SOi-Hgh-Z8nxF2Quk_VXThM9Co6EipA/exec";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbzleVi3s00d3PY5c68phjE0QcEhHOmYLrnfpSUv_rmly6lOqigTSmS0X1n7RcEqaJ29BQ/exec";
 
 // ── GESLA ─────────────────────────────────────────────────
 const LOGIN_USERNAME = "Test2026";
@@ -675,32 +675,38 @@ async function saveResults(name, totalPct, totalPass, stats){
   }
 }
 
-async function renderRezultati(){
+function jsonp(url){
+  return new Promise((resolve, reject)=>{
+    const cb = 'cb_'+Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    window[cb] = function(data){ resolve(data); delete window[cb]; script.remove(); };
+    script.onerror = ()=>{ reject(new Error('JSONP napaka')); delete window[cb]; script.remove(); };
+    script.src = url + '&callback='+cb;
+    document.head.appendChild(script);
+  });
+}
+
+function renderRezultati(){
   const container = document.getElementById('rez-container');
   const statsEl   = document.getElementById('rez-stats');
   container.innerHTML = '<div class="rez-empty">Nalagam rezultate...</div>';
-  statsEl.innerHTML   = '';
-  try {
-    const r    = await fetch(SHEETS_URL+'?r=1');
-    const rows = await r.json();
-    if(!Array.isArray(rows) || !rows.length){
-      container.innerHTML='<div class="rez-empty">Še ni rezultatov.</div>'; return;
-    }
+  statsEl.innerHTML = '';
+  jsonp(SHEETS_URL+'?r=1').then(rows=>{
+    if(!Array.isArray(rows)||!rows.length){ container.innerHTML='<div class="rez-empty">Še ni rezultatov.</div>'; return; }
     const total  = rows.length;
     const passed = rows.filter(r=>(r['Status']||'').includes('POZITIVNO')).length;
-    const failed = total - passed;
-    statsEl.innerHTML =
+    const failed = total-passed;
+    statsEl.innerHTML=
       '<div class="rez-stat"><div class="rez-stat-val">'+total+'</div><div class="rez-stat-label">Skupaj testov</div></div>'+
       '<div class="rez-stat"><div class="rez-stat-val green">'+passed+'</div><div class="rez-stat-label">Pozitivnih</div></div>'+
       '<div class="rez-stat"><div class="rez-stat-val red">'+failed+'</div><div class="rez-stat-label">Negativnih</div></div>';
-    // Tabela — prikaži samo glavne stolpce, brez sklop detajlov
-    const html = '<div class="rez-table-wrap"><table class="rez-table"><thead><tr>'+
+    const html='<div class="rez-table-wrap"><table class="rez-table"><thead><tr>'+
       '<th>Ime in priimek</th><th>Datum</th><th>Ura</th><th>Skupaj %</th><th>Status</th>'+
       '<th>Fin.</th><th>Pravne</th><th>Trž.</th><th>Prem.</th><th>Živl.</th><th>Nal.</th><th>Poz.</th><th>Pranje</th>'+
       '</tr></thead><tbody>'+
       rows.slice().reverse().map(r=>{
-        const pass = (r['Status']||'').includes('POZITIVNO');
-        const pct  = r['Skupaj %'] || '—';
+        const pass=(r['Status']||'').includes('POZITIVNO');
+        const pct=r['Skupaj %']||'—';
         return '<tr>'+
           '<td class="rez-name">'+(r['Ime in priimek']||'—')+'</td>'+
           '<td>'+(r['Datum']||'—')+'</td>'+
@@ -708,16 +714,16 @@ async function renderRezultati(){
           '<td class="rez-pct '+(pass?'pass':'fail')+'">'+pct+'</td>'+
           '<td><span class="rez-badge '+(pass?'pass':'fail')+'">'+(pass?'✓ DA':'✗ NE')+'</span></td>'+
           ['Finančno','Pravne','Trženje','Premoženjska','Življenjska','Naložbeni','Pozavarovanja','Pranje denarja'].map(s=>{
-            const st = r[s]||'';
-            return '<td style="font-size:12px;color:'+(st==='P'?'var(--green)':st==='N'?'var(--red)':'var(--muted)')+';font-weight:600;">'+(st==='P'?'✓':st==='N'?'✗':'—')+'</td>';
+            const st=r[s]||'';
+            return '<td style="font-size:12px;font-weight:600;color:'+(st==='P'?'var(--green)':st==='N'?'var(--red)':'var(--muted)')+';">'+(st==='P'?'✓':st==='N'?'✗':'—')+'</td>';
           }).join('')+
           '</tr>';
       }).join('')+
       '</tbody></table></div>';
-    container.innerHTML = html;
-  } catch(err){
-    container.innerHTML='<div class="rez-empty">Napaka pri nalaganju rezultatov.<br><small>'+err.message+'</small></div>';
-  }
+    container.innerHTML=html;
+  }).catch(err=>{
+    container.innerHTML='<div class="rez-empty">Napaka pri nalaganju.<br><small>'+err.message+'</small></div>';
+  });
 }
 
 function retryTest(){
