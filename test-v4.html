@@ -10,7 +10,41 @@
     --bg:#0f1117;--surface:#181c27;--card:#1e2333;--border:#2a3050;
     --accent:#4f8ef7;--accent2:#7c5cfc;--green:#22c55e;--red:#ef4444;
     --yellow:#f59e0b;--text:#e8ecf5;--muted:#7a8299;--radius:12px;
+    --login-bg:radial-gradient(ellipse at 60% 40%,#1a2450 0%,#0a0d18 70%);
+    --header-bg:linear-gradient(135deg,#1a2040 0%,#0d1225 100%);
   }
+  body.light {
+    --bg:#f0f2f8;--surface:#e4e8f4;--card:#ffffff;--border:#d0d6e8;
+    --text:#1a1f35;--muted:#6b7494;
+    --login-bg:radial-gradient(ellipse at 60% 40%,#c8d4f8 0%,#e8ecf8 70%);
+    --header-bg:linear-gradient(135deg,#e0e8ff 0%,#d0daff 100%);
+  }
+  body.light .header-title{color:var(--text);}
+  body.light .option-text{color:#3a4060;}
+  body.light .option:hover{background:#e8eeff;}
+  body.light .option.selected{background:rgba(79,142,247,.15);}
+  body.light #login-screen{background:var(--login-bg);}
+  body.light .login-input{color:var(--text);}
+  body.light .login-input::placeholder{color:#9aa0bc;}
+  body.light .form-input,.form-select,.form-textarea{color:var(--text);}
+  body.light .admin-header{background:var(--header-bg);}
+
+  /* THEME TOGGLE */
+  .theme-toggle{background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:16px;cursor:pointer;transition:all .2s;color:var(--muted);line-height:1;}
+  .theme-toggle:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* NAV MAPA */
+  #nav-map{position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:200;display:none;flex-direction:column;gap:5px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 8px;box-shadow:0 8px 32px rgba(0,0,0,.3);}
+  #nav-map.visible{display:flex;}
+  .nav-section-group{display:flex;flex-direction:column;gap:3px;}
+  .nav-section-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:2px 4px;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
+  .nav-dots{display:flex;gap:3px;flex-wrap:wrap;max-width:80px;}
+  .nav-dot{width:12px;height:12px;border-radius:3px;background:var(--border);cursor:pointer;transition:all .18s;flex-shrink:0;border:1.5px solid transparent;}
+  .nav-dot:hover{border-color:var(--accent);}
+  .nav-dot.answered{background:var(--accent);opacity:.7;}
+  .nav-dot.answered:hover{opacity:1;}
+  .nav-divider{height:1px;background:var(--border);margin:4px 0;}
+  @media(max-width:900px){#nav-map{right:8px;}}
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 
@@ -210,6 +244,11 @@
 </head>
 <body>
 
+<!-- THEME TOGGLE (fiksno zgoraj desno) -->
+<div style="position:fixed;top:16px;right:16px;z-index:9999;">
+  <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" title="Preklopi temo">🌙</button>
+</div>
+
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
@@ -228,6 +267,9 @@
     <button class="btn-login" onclick="doLogin()">Vstopi →</button>
   </div>
 </div>
+
+<!-- NAV MAPA -->
+<div id="nav-map"></div>
 
 <!-- TEST -->
 <div id="app-screen" style="display:none">
@@ -448,6 +490,62 @@ const QUESTIONS = [
 const letters = ['a','b','c','d'];
 let answered = {}, activeQuestions = [], shuffledOptions = {};
 
+// ── TEMA ──────────────────────────────────────────────────
+function toggleTheme(){
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('theme-btn').textContent = isLight ? '🌞' : '🌙';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+(function initTheme(){
+  if(localStorage.getItem('theme')==='light'){
+    document.body.classList.add('light');
+    document.addEventListener('DOMContentLoaded',()=>{
+      const btn=document.getElementById('theme-btn');
+      if(btn) btn.textContent='🌞';
+    });
+  }
+})();
+
+// ── NAV MAPA ──────────────────────────────────────────────
+function buildNavMap(){
+  const nav = document.getElementById('nav-map');
+  nav.innerHTML='';
+  nav.classList.remove('visible');
+  if(!activeQuestions.length) return;
+  let qIndex=0;
+  SECTIONS.forEach((sec,si)=>{
+    const secQs=activeQuestions.filter(q=>q.section===sec.id);
+    if(!secQs.length) return;
+    if(si>0){ const div=document.createElement('div'); div.className='nav-divider'; nav.appendChild(div); }
+    const group=document.createElement('div'); group.className='nav-section-group';
+    const shortNames={financno:'Fin.',pravne:'Prav.',trzenje:'Trž.',premozenjska:'Prem.',zivljenjska:'Živl.',nalozbeni:'Nal.',pozavarovanja:'Poz.',pranje:'Pranje'};
+    const label=document.createElement('div'); label.className='nav-section-label'; label.textContent=shortNames[sec.id]||sec.id;
+    const dots=document.createElement('div'); dots.className='nav-dots';
+    secQs.forEach(q=>{
+      qIndex++;
+      const dot=document.createElement('div');
+      dot.className='nav-dot';
+      dot.id='navdot-'+q.id;
+      dot.title='Vprašanje '+qIndex;
+      dot.onclick=()=>{ document.getElementById('qcard-'+q.id).scrollIntoView({behavior:'smooth',block:'center'}); };
+      dots.appendChild(dot);
+    });
+    group.appendChild(label); group.appendChild(dots); nav.appendChild(group);
+  });
+  nav.classList.add('visible');
+}
+
+function updateNavDot(qid){
+  const dot=document.getElementById('navdot-'+qid);
+  if(dot) dot.classList.add('answered');
+}
+
+function hideNavMap(){
+  const nav=document.getElementById('nav-map');
+  nav.classList.remove('visible');
+  nav.innerHTML='';
+}
+
 function show(id){ document.getElementById(id).style.display = (id==='login-screen' ? 'flex' : 'block'); }
 function hide(id){ document.getElementById(id).style.display = 'none'; }
 function pickRandom(arr,n){ return [...arr].sort(()=>Math.random()-.5).slice(0,Math.min(n,arr.length)); }
@@ -467,6 +565,7 @@ function doLogin(){
 }
 function doLogout(){
   hide('admin-screen'); hide('app-screen'); show('login-screen');
+  hideNavMap();
   document.getElementById('inp-user').value='';
   document.getElementById('inp-pass').value='';
   document.getElementById('login-error').style.display='none';
@@ -586,6 +685,7 @@ function renderQuiz(allQ){
     });
     form.appendChild(block);
   });
+  buildNavMap();
 }
 
 function selectOption(qid,origIdx){
@@ -593,6 +693,7 @@ function selectOption(qid,origIdx){
   q.options.forEach((_,i)=>{ const el=document.getElementById('opt-'+qid+'-'+i); if(el) el.classList.remove('selected'); });
   document.getElementById('opt-'+qid+'-'+origIdx).classList.add('selected');
   answered[qid]=origIdx;
+  updateNavDot(qid);
   updateProgress();
 }
 
