@@ -157,12 +157,54 @@
   .filter-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
   .filter-select{background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:14px;font-family:'Source Sans 3',sans-serif;color:var(--text);outline:none;cursor:pointer;}
   .q-count-badge{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:9px 14px;font-size:13px;color:var(--muted);}
+  /* REZULTATI ADMIN */
+  .rez-table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border);}
+  .rez-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .rez-table th{background:var(--surface);padding:12px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  .rez-table td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+  .rez-table tr:last-child td{border-bottom:none;}
+  .rez-table tr:hover td{background:rgba(255,255,255,.02);}
+  .rez-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+  .rez-badge.pass{background:rgba(34,197,94,.15);color:var(--green);}
+  .rez-badge.fail{background:rgba(239,68,68,.12);color:var(--red);}
+  .rez-name{font-weight:600;}
+  .rez-pct{font-weight:700;font-size:15px;}
+  .rez-pct.pass{color:var(--green);}
+  .rez-pct.fail{color:var(--red);}
+  .rez-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+  .rez-stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;text-align:center;}
+  .rez-stat-val{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--text);}
+  .rez-stat-val.green{color:var(--green);}
+  .rez-stat-val.red{color:var(--red);}
+  .rez-stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:4px;}
+  .rez-empty{text-align:center;padding:48px 20px;color:var(--muted);font-size:15px;background:var(--card);border:1px dashed var(--border);border-radius:var(--radius);}
+  .btn-refresh{background:transparent;border:1.5px solid var(--border);color:var(--muted);padding:9px 18px;border-radius:8px;font-size:13px;font-family:'Source Sans 3',sans-serif;cursor:pointer;transition:all .2s;}
+  .btn-refresh:hover{border-color:var(--accent);color:var(--accent);}
+  .rez-filter-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+
+  /* TABLET & MOBILE */
+  @media(max-width:768px){
+    .header{padding:16px 20px;}
+    .header-title{font-size:18px;}
+    .progress-bar{width:140px;}
+    .admin-header{padding:16px 20px;}
+    .admin-tabs{flex-wrap:wrap;}
+    .admin-tab{font-size:13px;padding:9px 6px;}
+    .rez-stats{grid-template-columns:repeat(3,1fr);gap:8px;}
+    .rez-stat-val{font-size:22px;}
+    .rez-table th,.rez-table td{padding:10px 10px;}
+  }
   @media(max-width:600px){
-    .header,.admin-header{padding:20px 16px;}
-    .main,.admin-wrap{padding:24px 12px 60px;}
-    .question-card,.add-form{padding:18px 16px;}
-    .btn-submit{padding:16px 40px;font-size:15px;}
+    .header,.admin-header{padding:14px 16px;}
+    .main,.admin-wrap{padding:20px 12px 60px;}
+    .question-card,.add-form{padding:16px 14px;}
+    .question-text{font-size:15px;}
+    .option-text{font-size:14px;}
+    .btn-submit{padding:15px 32px;font-size:15px;width:100%;}
     .options-grid{grid-template-columns:1fr;}
+    .rez-stats{grid-template-columns:1fr 1fr;}
+    .section-results-grid{grid-template-columns:1fr;}
+    .login-card{padding:36px 24px 32px;}
   }
 </style>
 </head>
@@ -236,8 +278,9 @@
   </div>
   <div class="admin-wrap">
     <div class="admin-tabs">
-      <div class="admin-tab active" id="tab-add" onclick="switchTab('add')">➕ Dodaj vprašanje</div>
-      <div class="admin-tab" id="tab-list" onclick="switchTab('list')">📋 Pregled vprašanj</div>
+      <div class="admin-tab active" id="tab-add" onclick="switchTab('add')">➕ Dodaj</div>
+      <div class="admin-tab" id="tab-list" onclick="switchTab('list')">📋 Vprašanja</div>
+      <div class="admin-tab" id="tab-rez" onclick="switchTab('rez')">📊 Rezultati</div>
     </div>
     <div id="panel-add">
       <div class="add-form">
@@ -307,6 +350,13 @@
       </div>
       <div class="q-list" id="q-list"><div class="q-list-empty">Nalagam...</div></div>
     </div>
+    <div id="panel-rez" style="display:none">
+      <div class="rez-stats" id="rez-stats"></div>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button class="btn-refresh" onclick="renderRezultati()">↺ Osveži</button>
+      </div>
+      <div id="rez-container"><div class="rez-empty">Nalagam...</div></div>
+    </div>
   </div>
 </div>
 
@@ -314,7 +364,7 @@
 // ══════════════════════════════════════════════════════════
 //  NASTAVI TUKAJ — samo ta URL je potrebno spremeniti
 // ══════════════════════════════════════════════════════════
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbyJqZ2NC9nCsd7YiaFZfG-ZrV2JN1W94uwdJje47hclJ47SpJWI6A7y-U3n1Nd2BiMDNw/exec";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbzHhtoC1jJE33Jmj9npxV_abnpRYUGSK1YEkmQ5uvTEqA5pTTYZ7NSd4DNxSIFfB37Rog/exec";
 
 // ── GESLA ─────────────────────────────────────────────────
 const LOGIN_USERNAME = "Test2026";
@@ -424,8 +474,12 @@ document.addEventListener('keydown', e => { if(e.key==='Enter' && document.getEl
 
 // ── ADMIN ─────────────────────────────────────────────────
 function switchTab(tab){
-  if(tab==='add'){ show('panel-add'); hide('panel-list'); document.getElementById('tab-add').classList.add('active'); document.getElementById('tab-list').classList.remove('active'); }
-  else{ hide('panel-add'); show('panel-list'); document.getElementById('tab-list').classList.add('active'); document.getElementById('tab-add').classList.remove('active'); renderList(); }
+  ['add','list','rez'].forEach(t=>{
+    document.getElementById('panel-'+t).style.display = t===tab ? 'block' : 'none';
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+  });
+  if(tab==='list') renderList();
+  if(tab==='rez')  renderRezultati();
 }
 function selectCorrect(idx){
   document.getElementById('radio-'+idx).checked=true;
@@ -621,7 +675,52 @@ async function saveResults(name, totalPct, totalPass, stats){
   }
 }
 
-function retryTest(){
+async function renderRezultati(){
+  const container = document.getElementById('rez-container');
+  const statsEl   = document.getElementById('rez-stats');
+  container.innerHTML = '<div class="rez-empty">Nalagam rezultate...</div>';
+  statsEl.innerHTML   = '';
+  try {
+    const r    = await fetch(SHEETS_URL+'?r=1');
+    const rows = await r.json();
+    if(!Array.isArray(rows) || !rows.length){
+      container.innerHTML='<div class="rez-empty">Še ni rezultatov.</div>'; return;
+    }
+    const total  = rows.length;
+    const passed = rows.filter(r=>(r['Status']||'').includes('POZITIVNO')).length;
+    const failed = total - passed;
+    statsEl.innerHTML =
+      '<div class="rez-stat"><div class="rez-stat-val">'+total+'</div><div class="rez-stat-label">Skupaj testov</div></div>'+
+      '<div class="rez-stat"><div class="rez-stat-val green">'+passed+'</div><div class="rez-stat-label">Pozitivnih</div></div>'+
+      '<div class="rez-stat"><div class="rez-stat-val red">'+failed+'</div><div class="rez-stat-label">Negativnih</div></div>';
+    // Tabela — prikaži samo glavne stolpce, brez sklop detajlov
+    const html = '<div class="rez-table-wrap"><table class="rez-table"><thead><tr>'+
+      '<th>Ime in priimek</th><th>Datum</th><th>Ura</th><th>Skupaj %</th><th>Status</th>'+
+      '<th>Fin.</th><th>Pravne</th><th>Trž.</th><th>Prem.</th><th>Živl.</th><th>Nal.</th><th>Poz.</th><th>Pranje</th>'+
+      '</tr></thead><tbody>'+
+      rows.slice().reverse().map(r=>{
+        const pass = (r['Status']||'').includes('POZITIVNO');
+        const pct  = r['Skupaj %'] || '—';
+        return '<tr>'+
+          '<td class="rez-name">'+(r['Ime in priimek']||'—')+'</td>'+
+          '<td>'+(r['Datum']||'—')+'</td>'+
+          '<td>'+(r['Ura']||'—')+'</td>'+
+          '<td class="rez-pct '+(pass?'pass':'fail')+'">'+pct+'</td>'+
+          '<td><span class="rez-badge '+(pass?'pass':'fail')+'">'+(pass?'✓ DA':'✗ NE')+'</span></td>'+
+          ['Finančno','Pravne','Trženje','Premoženjska','Življenjska','Naložbeni','Pozavarovanja','Pranje denarja'].map(s=>{
+            const st = r[s]||'';
+            return '<td style="font-size:12px;color:'+(st==='P'?'var(--green)':st==='N'?'var(--red)':'var(--muted)')+'font-weight:600;">'+(st==='P'?'✓':st==='N'?'✗':'—')+'</td>';
+          }).join('')+
+          '</tr>';
+      }).join('')+
+      '</tbody></table></div>';
+    container.innerHTML = html;
+  } catch(err){
+    container.innerHTML='<div class="rez-empty">Napaka pri nalaganju rezultatov.<br><small>'+err.message+'</small></div>';
+  }
+}
+
+
   document.getElementById('candidate-name').value='';
   document.getElementById('candidate-name').style.borderColor='var(--border)';
   window.scrollTo({top:0,behavior:'smooth'});
