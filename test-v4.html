@@ -36,6 +36,10 @@
   /* NAV MAPA */
   #nav-map{position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:200;display:none;flex-direction:column;gap:5px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 8px;box-shadow:0 8px 32px rgba(0,0,0,.3);}
   #nav-map.visible{display:flex;}
+  #nav-map.collapsed .nav-section-group,#nav-map.collapsed .nav-divider{display:none;}
+  #nav-map.collapsed{padding:6px 8px;gap:0;}
+  .nav-toggle{background:transparent;border:none;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 4px;border-radius:4px;transition:all .2s;align-self:center;line-height:1;margin-bottom:2px;}
+  .nav-toggle:hover{color:var(--accent);}
   .nav-section-group{display:flex;flex-direction:column;gap:3px;}
   .nav-section-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:2px 4px;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
   .nav-dots{display:flex;gap:3px;flex-wrap:wrap;max-width:80px;}
@@ -573,11 +577,36 @@ function toggleTheme(){
 })();
 
 // ── NAV MAPA ──────────────────────────────────────────────
+let _navCollapsed = false;
+
+function toggleNavMap(){
+  const nav = document.getElementById('nav-map');
+  _navCollapsed = !_navCollapsed;
+  nav.classList.toggle('collapsed', _navCollapsed);
+  const btn = document.getElementById('nav-toggle-btn');
+  if(btn) btn.textContent = _navCollapsed ? '◀' : '▶';
+  localStorage.setItem('navCollapsed', _navCollapsed ? '1' : '0');
+}
+
 function buildNavMap(){
   const nav = document.getElementById('nav-map');
   nav.innerHTML='';
-  nav.classList.remove('visible');
+  nav.classList.remove('visible','collapsed');
   if(!activeQuestions.length) return;
+
+  // Inicializiraj collapsed stanje iz localStorage
+  _navCollapsed = localStorage.getItem('navCollapsed')==='1';
+  if(_navCollapsed) nav.classList.add('collapsed');
+
+  // Toggle gumb na vrhu
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className='nav-toggle';
+  toggleBtn.id='nav-toggle-btn';
+  toggleBtn.textContent = _navCollapsed ? '◀' : '▶';
+  toggleBtn.title = 'Skrij/pokaži mapo';
+  toggleBtn.onclick = toggleNavMap;
+  nav.appendChild(toggleBtn);
+
   let qIndex=0;
   SECTIONS.forEach((sec,si)=>{
     const secQs=activeQuestions.filter(q=>q.section===sec.id);
