@@ -1004,6 +1004,7 @@ const SKLOP_COLORS = ['#4f8ef7','#7c5cfc','#22c55e','#f59e0b','#ef4444','#06b6d4
 
 let _dashData = null;
 let _selectedKandidat = null;
+let _selectedAttempt = null; // indeks poskusa za prikaz
 
 function renderDashboard(forceRefresh){
   const container = document.getElementById('dash-container');
@@ -1196,11 +1197,11 @@ function drawTrend(months, byMonth){
 
 function selectKandidat(koda){
   _selectedKandidat = koda;
+  _selectedAttempt = null; // resetiraj na zadnji poskus
   document.querySelectorAll('.kandidat-card').forEach(el=>{
     const k=el.querySelector('.kandidat-card-meta strong');
     el.classList.toggle('selected', k && k.textContent===koda);
   });
-  // Rebuild byKoda from _dashData
   const byKoda={};
   _dashData.forEach(r=>{
     const k=r['Koda']||r['Ime in priimek']||'?';
@@ -1210,10 +1211,13 @@ function selectKandidat(koda){
   showKandidatDetail(koda, byKoda);
 }
 
-function showKandidatDetail(koda, byKoda){
+function showKandidatDetail(koda, byKoda, attemptIdx){
   const attempts=byKoda[koda];
   if(!attempts||!attempts.length) return;
-  const r=attempts[attempts.length-1]; // zadnji poskus za radar
+  // Določi kateri poskus prikazujemo
+  if(attemptIdx !== undefined) _selectedAttempt = attemptIdx;
+  const idx = (_selectedAttempt !== null) ? _selectedAttempt : attempts.length-1;
+  const r=attempts[idx];
   const pass=r['Status'].includes('POZITIVNO');
   const sklopData=SKLOP_FULL.map(s=>{
     const pct=parseFloat(r[s+' %'])||0;
@@ -1265,20 +1269,22 @@ function showKandidatDetail(koda, byKoda){
     </div>`).join('');
 
   // Zgodovina poskusov
-  const histHTML = attempts.length > 1 ? `
-    <div style="margin-top:20px;">
-      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">📅 Zgodovina poskusov (${attempts.length})</div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
+  // Navigator med poskusi
+  const navHTML = attempts.length > 1 ? `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button onclick="navigateAttempt('${koda}',-1)" style="background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;font-size:14px;cursor:pointer;color:var(--text);transition:all .2s;" ${idx===0?'disabled style="opacity:.4;cursor:not-allowed;"':''}>◀</button>
+      <div style="flex:1;display:flex;gap:6px;flex-wrap:wrap;">
         ${attempts.map((a,i)=>{
           const ap=a['Status'].includes('POZITIVNO');
-          return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card);border-radius:8px;border:1px solid var(--border);">
-            <span style="font-size:11px;font-weight:700;color:var(--muted);width:20px;">#${i+1}</span>
-            <span style="font-size:13px;flex:1;">${a['Datum']||''} ob ${a['Ura']||''}</span>
-            <span style="font-size:14px;font-weight:700;color:${ap?'var(--green)':'var(--red)'};">${a['Skupaj %']||'—'}</span>
-            <span class="rez-badge ${ap?'pass':'fail'}">${ap?'✓':'✗'}</span>
+          const isCurrent=i===idx;
+          return `<div onclick="navigateAttempt('${koda}',0,${i})" style="cursor:pointer;padding:6px 10px;border-radius:8px;border:1.5px solid ${isCurrent?'var(--accent)':'var(--border)'};background:${isCurrent?'rgba(79,142,247,.12)':'var(--surface)'};font-size:12px;transition:all .2s;">
+            <div style="font-weight:700;color:${isCurrent?'var(--accent)':'var(--muted)'};">#${i+1}</div>
+            <div style="font-size:11px;color:${ap?'var(--green)':'var(--red)'};">${a['Skupaj %']||'—'}</div>
+            <div style="font-size:10px;color:var(--muted);">${(a['Datum']||'').slice(0,5)}</div>
           </div>`;
         }).join('')}
       </div>
+      <button onclick="navigateAttempt('${koda}',1)" style="background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;font-size:14px;cursor:pointer;color:var(--text);transition:all .2s;" ${idx===attempts.length-1?'disabled style="opacity:.4;cursor:not-allowed;"':''}>▶</button>
     </div>` : '';
 
   document.getElementById('dash-detail').innerHTML=`
@@ -1286,15 +1292,15 @@ function showKandidatDetail(koda, byKoda){
       <div class="detail-header">
         <div>
           <div class="detail-name">${r['Ime in priimek']||'—'} <span style="font-size:14px;color:var(--accent);font-family:monospace;">${koda}</span></div>
-          <div class="detail-meta">Zadnji test: ${r['Datum']||''} ob ${r['Ura']||''} · Skupaj: <strong>${r['Skupaj %']||'—'}</strong> · ${attempts.length} ${attempts.length===1?'poskus':'poskusov'}</div>
+          <div class="detail-meta">${r['Datum']||''} ob ${r['Ura']||''} · Skupaj: <strong>${r['Skupaj %']||'—'}</strong> · Poskus ${idx+1} od ${attempts.length}</div>
         </div>
         <span class="rez-badge ${pass?'pass':'fail'}" style="font-size:13px;padding:6px 14px;">${pass?'✓ POZITIVNO':'✗ NEGATIVNO'}</span>
       </div>
+      ${navHTML}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
         <div>
-          <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">Rezultati po sklopih (zadnji poskus)</div>
+          <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">Rezultati po sklopih</div>
           <div class="sklop-bars">${barsHTML}</div>
-          ${histHTML}
         </div>
         <div>
           <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">Radar — strong/weak točke</div>
@@ -1302,6 +1308,22 @@ function showKandidatDetail(koda, byKoda){
         </div>
       </div>
     </div>`;
+}
+
+function navigateAttempt(koda, dir, exactIdx){
+  const byKoda={};
+  _dashData.forEach(r=>{
+    const k=r['Koda']||r['Ime in priimek']||'?';
+    if(!byKoda[k]) byKoda[k]=[];
+    byKoda[k].push(r);
+  });
+  const attempts=byKoda[koda];
+  if(!attempts) return;
+  const current=_selectedAttempt!==null ? _selectedAttempt : attempts.length-1;
+  let newIdx;
+  if(exactIdx!==undefined) newIdx=exactIdx;
+  else newIdx=Math.max(0,Math.min(attempts.length-1, current+dir));
+  showKandidatDetail(koda, byKoda, newIdx);
 }
 
 function retryTest(){
